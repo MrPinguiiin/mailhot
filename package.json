@@ -45,6 +45,7 @@
     "deploy:check": "vercel deploy --dry"
   },
   "dependencies": {
+    "@lucide/svelte": "^1.25.0",
     "@mailhog/env": "workspace:*",
     "dotenv": "catalog:",
     "zod": "catalog:"

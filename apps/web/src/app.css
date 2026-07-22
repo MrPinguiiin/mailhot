@@ -84,3 +84,10 @@ body {
 .tag {
   @apply rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs uppercase tracking-wider text-primary;
 }
+
+.blueprint-grid {
+  background-image:
+    linear-gradient(to right, rgba(132, 148, 149, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(132, 148, 149, 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
