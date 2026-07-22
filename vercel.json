@@ -3,5 +3,5 @@
   "bunVersion": "1.x",
   "framework": "sveltekit",
   "installCommand": "bun install --frozen-lockfile",
-  "buildCommand": "bun run --filter web build"
+  "buildCommand": "PUBLIC_SERVER_URL=/api bun run --filter web build"
 }
