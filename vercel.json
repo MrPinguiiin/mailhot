@@ -1,13 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "bunVersion": "1.x",
-  "buildCommand": "bun run --filter web build",
-  "installCommand": "bun install --frozen-lockfile",
-  "framework": "sveltekit",
   "services": {
     "web": {
       "root": "apps/web",
       "framework": "sveltekit",
+      "installCommand": "cd ../.. && bun install --frozen-lockfile",
       "buildCommand": "PUBLIC_SERVER_URL=/api bun run build"
     },
     "server": {
