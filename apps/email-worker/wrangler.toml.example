@@ -1,0 +1,9 @@
+name = "mailhog-email-ingest"
+main = "src/index.ts"
+compatibility_date = "2026-07-22"
+
+[vars]
+INGEST_URL = "https://api.example.com/api/inbound/email"
+
+# Set the secret with:
+# wrangler secret put INBOUND_EMAIL_SECRET

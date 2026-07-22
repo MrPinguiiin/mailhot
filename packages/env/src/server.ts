@@ -29,6 +29,7 @@ export const env = createEnv({
     BETTER_AUTH_SECRET: z.string().min(32),
     BETTER_AUTH_URL: z.url(),
     CORS_ORIGIN: z.url(),
+    INBOUND_EMAIL_SECRET: z.string().min(32).optional(),
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   },
   runtimeEnv: runtimeEnv,
