@@ -4,6 +4,7 @@ import { z } from "zod";
 import { protectedProcedure, publicProcedure } from "../index";
 import {
   configureEmailRouting,
+  assertWorkerExists,
   fetchCloudflareZones,
   validateCloudflareDomain,
 } from "../cloudflare";
@@ -92,8 +93,6 @@ export const appRouter = {
         },
       });
       try {
-        if (!env.CF_EMAIL_WORKER_NAME)
-          throw new Error("CF_EMAIL_WORKER_NAME belum dikonfigurasi di server");
         const zone = await validateCloudflareDomain(
           input.cloudflareToken,
           hostname,
@@ -102,10 +101,12 @@ export const appRouter = {
           where: { id: job.id },
           data: { currentStep: "configuring_email_routing" },
         });
+        const workerName = env.CF_EMAIL_WORKER_NAME ?? "mailhog-email-ingest";
+        await assertWorkerExists(input.cloudflareToken, zone.id, workerName);
         await configureEmailRouting(
           input.cloudflareToken,
           zone.id,
-          env.CF_EMAIL_WORKER_NAME,
+          workerName,
         );
         await context.db.domain.update({
           where: { id: domain.id },

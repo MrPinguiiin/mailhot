@@ -6,6 +6,13 @@ type CloudflareResponse<T> = {
   errors?: Array<{ message?: string }>;
 };
 
+type CloudflareZone = {
+  id: string;
+  name: string;
+  status: string;
+  account?: { id: string };
+};
+
 async function cloudflareRequest<T>(
   token: string,
   path: string,
@@ -29,16 +36,7 @@ async function cloudflareRequest<T>(
   return body.result;
 }
 
-type EmailRoutingRule = {
-  id: string;
-  name?: string;
-  enabled: boolean;
-  matchers?: Array<{ type: string }>;
-  actions?: Array<{ type: string; value?: string[] }>;
-};
-
 export async function fetchCloudflareZones(token: string) {
-  await cloudflareRequest(token, "/user/tokens/verify");
   return cloudflareRequest<Array<{ id: string; name: string; status: string }>>(
     token,
     "/zones?per_page=50",
@@ -49,9 +47,8 @@ export async function validateCloudflareDomain(
   token: string,
   hostname: string,
 ) {
-  await cloudflareRequest(token, "/user/tokens/verify");
   const result = await cloudflareRequest<
-    Array<{ id: string; name: string; status: string }>
+    CloudflareZone[]
   >(
     token,
     `/zones?name=${encodeURIComponent(hostname)}&status=active&per_page=1`,
@@ -65,20 +62,68 @@ export async function validateCloudflareDomain(
   return zone;
 }
 
+export async function assertWorkerExists(
+  token: string,
+  zoneId: string,
+  workerName: string,
+) {
+  const zone = await cloudflareRequest<CloudflareZone>(
+    token,
+    `/zones/${zoneId}`,
+  );
+  const accountId = zone.account?.id;
+  if (!accountId) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Cloudflare account untuk zone tidak ditemukan",
+    });
+  }
+
+  const response = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${accountId}/workers/scripts/${encodeURIComponent(workerName)}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (response.status === 401 || response.status === 403) {
+    throw new ORPCError("BAD_REQUEST", {
+      message:
+        "Token Cloudflare tidak memiliki akses Workers Scripts:Read/Edit.",
+    });
+  }
+  if (response.status === 404) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: `Worker ${workerName} belum ditemukan di Cloudflare. Deploy Worker tersebut terlebih dahulu atau beri token permission Workers Scripts:Edit.`,
+    });
+  }
+  if (!response.ok) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: `Gagal memeriksa Worker ${workerName} di Cloudflare (${response.status}).`,
+    });
+  }
+}
+
 export async function configureEmailRouting(
   token: string,
   zoneId: string,
   workerName: string,
 ) {
-  await cloudflareRequest(token, `/zones/${zoneId}/email/routing/settings`, {
-    method: "PUT",
-    body: JSON.stringify({ enabled: true }),
-  });
-
-  const rules = await cloudflareRequest<EmailRoutingRule[]>(
+  const routing = await cloudflareRequest<{ enabled: boolean }>(
     token,
-    `/zones/${zoneId}/email/routing/rules`,
+    `/zones/${zoneId}/email/routing`,
   );
+  if (!routing.enabled) {
+    await cloudflareRequest(token, `/zones/${zoneId}/email/routing`, {
+      method: "PATCH",
+      body: JSON.stringify({ enabled: true }),
+    });
+  }
+
+  const rules = await cloudflareRequest<
+    Array<{
+      id: string;
+      name?: string;
+      matchers?: Array<{ type: string }>;
+      actions?: Array<{ type: string; value?: string[] }>;
+    }>
+  >(token, `/zones/${zoneId}/email/routing/rules`);
   const existing = rules.find((rule) => rule.name === "mailhog-catch-all");
   const payload = {
     name: "mailhog-catch-all",
@@ -86,15 +131,11 @@ export async function configureEmailRouting(
     matchers: [{ type: "all" }],
     actions: [{ type: "worker", value: [workerName] }],
   };
-
   if (existing) {
     await cloudflareRequest(
       token,
       `/zones/${zoneId}/email/routing/rules/${existing.id}`,
-      {
-        method: "PUT",
-        body: JSON.stringify(payload),
-      },
+      { method: "PUT", body: JSON.stringify(payload) },
     );
   } else {
     await cloudflareRequest(token, `/zones/${zoneId}/email/routing/rules`, {
