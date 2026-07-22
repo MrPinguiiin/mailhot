@@ -188,6 +188,21 @@ export const appRouter = {
         },
       });
     }),
+  deleteClient: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .handler(async ({ input, context }) => {
+      const client = await context.db.client.findFirst({
+        where: { id: input.id, ownerId: context.session.user.id },
+      });
+      if (!client) throw new Error("Client not found");
+      await context.db.setupJob.deleteMany({ where: { clientId: client.id } });
+      await context.db.email.deleteMany({
+        where: { domain: { clientId: client.id } },
+      });
+      await context.db.domain.deleteMany({ where: { clientId: client.id } });
+      await context.db.client.delete({ where: { id: client.id } });
+      return { success: true };
+    }),
   deleteEmail: publicProcedure
     .input(
       z.object({

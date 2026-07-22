@@ -104,6 +104,7 @@
       const body = await res.json();
       if (!res.ok) {
         zoneError = body.error || "Failed to fetch domains";
+        toast.error(zoneError);
         return;
       }
       zones = (body.zones || []).filter(
@@ -111,12 +112,14 @@
       );
       if (zones.length === 0) {
         zoneError = "No active domains found on this Cloudflare account.";
+        toast.error(zoneError);
         return;
       }
       step = "select";
     } catch (err) {
       console.error("Fetch zones error:", err);
       zoneError = "Network error. Is the server running?";
+      toast.error(zoneError);
     } finally {
       isFetchingZones = false;
     }
@@ -148,11 +151,14 @@
         });
         provisioningResults[i] = { hostname: zone.name, status: "done" };
       } catch (err) {
+        const msg =
+          err instanceof Error ? err.message : "Provisioning failed";
         provisioningResults[i] = {
           hostname: zone.name,
           status: "failed",
-          error: err instanceof Error ? err.message : "Provisioning failed",
+          error: msg,
         };
+        toast.error(`${zone.name}: ${msg}`);
       }
     }
 
@@ -616,6 +622,15 @@
                             data-icon="inline-start"
                             aria-hidden="true"
                           /> Open
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          disabled={deleteClientMut.isPending}
+                          onclick={() =>
+                            deleteClientMut.mutate({ id: client.id })}
+                        >
+                          Delete
                         </Button>
                       </div>
                     </div>

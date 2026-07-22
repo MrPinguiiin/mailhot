@@ -72,7 +72,11 @@ app.post("/api/cloudflare/zones", async (c) => {
   if (zonesRes.status === 401 || zonesRes.status === 403) {
     return c.json({ error: "Invalid Cloudflare API token" }, 401);
   }
-  const zonesBody = await zonesRes.json();
+  const zonesBody = (await zonesRes.json()) as {
+    success: boolean;
+    errors?: Array<{ message: string }>;
+    result?: Array<{ id: string; name: string; status: string }>;
+  };
   if (!zonesBody.success) {
     return c.json(
       { error: zonesBody.errors?.[0]?.message || "Failed to fetch zones" },

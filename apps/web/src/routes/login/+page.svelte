@@ -1,7 +1,15 @@
 <script lang="ts">
+  import { goto } from "$app/navigation";
   import { ShieldCheck, Mail, Route, Network } from "@lucide/svelte";
   import SignInForm from "../../components/SignInForm.svelte";
   import SignUpForm from "../../components/SignUpForm.svelte";
+  import { authClient } from "$lib/auth-client";
+
+  const sessionQuery = authClient.useSession();
+
+  $effect(() => {
+    if (!$sessionQuery.isPending && $sessionQuery.data) goto("/dashboard");
+  });
 
   let showSignIn = $state(true);
 </script>

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { HTMLButtonAttributes } from "svelte/elements";
-  export let variant: "default" | "outline" | "ghost" | "secondary" = "default";
+  export let variant: "default" | "outline" | "ghost" | "secondary" | "destructive" = "default";
   export let size: "default" | "sm" | "lg" | "icon" = "default";
   let className = "";
   export { className as class };
@@ -15,6 +15,8 @@
       "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
     ghost: "hover:bg-accent hover:text-accent-foreground",
     secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+    destructive:
+      "bg-destructive text-destructive-foreground hover:bg-destructive/90",
   };
   const sizes = {
     default: "h-10 px-4 py-2",
