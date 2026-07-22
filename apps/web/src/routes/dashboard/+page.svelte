@@ -6,6 +6,10 @@
   import { Button } from "$lib/components/ui/button";
   import { Card } from "$lib/components/ui/card";
   import { Input } from "$lib/components/ui/input";
+  import { Badge } from "$lib/components/ui/badge";
+  import * as Field from "$lib/components/ui/field";
+  import { Separator } from "$lib/components/ui/separator";
+  import { toast } from "svelte-sonner";
   import {
     Building2,
     Check,
@@ -15,7 +19,6 @@
     LogOut,
     Mail,
     Plus,
-    User,
   } from "@lucide/svelte";
 
   const sessionQuery = authClient.useSession();
@@ -26,6 +29,10 @@
       onSuccess: () => {
         clientName = "";
         dashboard.refetch();
+        toast.success("Client instance created");
+      },
+      onError: (error) => {
+        toast.error(error.message || "Failed to create client");
       },
     }),
   );
@@ -95,7 +102,7 @@
             <p class="text-sm font-semibold text-foreground">{user.name}</p>
             <p class="mt-1 text-xs text-muted-foreground">{user.email}</p>
           </div>
-          <span class="tag">Owner</span>
+          <Badge variant="secondary">Owner</Badge>
         </div>
         <Button variant="ghost" onclick={signOut}>
           <LogOut data-icon="inline-start" aria-hidden="true" /> Sign out
@@ -178,16 +185,21 @@
                   if (clientName) createClient.mutate({ name: clientName });
                 }}
               >
-                <Input
-                  class="flex-1"
-                  bind:value={clientName}
-                  placeholder="Client name, e.g. Acme Corp"
-                />
+                <Field.Field class="flex-1">
+                  <Input
+                    bind:value={clientName}
+                    placeholder="Client name, e.g. Acme Corp"
+                  />
+                </Field.Field>
                 <Button disabled={createClient.isPending}>
                   {#if createClient.isPending}
-                    <Loader2 class="animate-spin" aria-hidden="true" />
+                    <Loader2
+                      class="animate-spin"
+                      data-icon="inline-start"
+                      aria-hidden="true"
+                    />
                   {:else}
-                    <Plus aria-hidden="true" />
+                    <Plus data-icon="inline-start" aria-hidden="true" />
                   {/if}
                   Create instance
                 </Button>
@@ -224,16 +236,18 @@
                           <h4 class="text-xl font-semibold text-foreground">
                             {client.name}
                           </h4>
-                          <span class="tag">{client.status}</span>
+                          <Badge
+                            variant={client.status === "ready"
+                              ? "default"
+                              : "secondary"}>{client.status}</Badge
+                          >
                           {#if isClientBusy(client)}
-                            <span
-                              class="flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs uppercase tracking-wider text-primary"
-                            >
+                            <Badge variant="outline" class="gap-1.5">
                               <Loader2
                                 class="size-3 animate-spin"
                                 aria-hidden="true"
                               /> Provisioning
-                            </span>
+                            </Badge>
                           {/if}
                         </div>
                         <p class="mt-1 text-sm text-primary">/{client.slug}</p>
@@ -244,7 +258,10 @@
                           size="sm"
                           href={`/client/${client.slug}`}
                         >
-                          <ExternalLink aria-hidden="true" /> Open
+                          <ExternalLink
+                            data-icon="inline-start"
+                            aria-hidden="true"
+                          /> Open
                         </Button>
                       </div>
                     </div>
@@ -265,7 +282,11 @@
                                 <span class="font-mono text-sm text-foreground"
                                   >{domain.hostname}</span
                                 >
-                                <span class="tag">{domain.status}</span>
+                                <Badge
+                                  variant={domain.status === "ready"
+                                    ? "default"
+                                    : "secondary"}>{domain.status}</Badge
+                                >
                               </div>
                             </div>
 
@@ -312,9 +333,8 @@
                                           : isFailed
                                             ? 'text-destructive'
                                             : 'text-muted-foreground'}"
+                                      >{step.label}</span
                                     >
-                                      {step.label}
-                                    </span>
                                   </div>
                                   {#if i < steps.length - 1}
                                     <div
@@ -338,7 +358,7 @@
                       <p
                         class="mt-4 font-mono text-xs uppercase tracking-wider text-muted-foreground"
                       >
-                        No domains configured. Use the setup form to add one.
+                        No domains configured.
                       </p>
                     {/if}
                   </Card>

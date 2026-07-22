@@ -2,11 +2,17 @@
   import UserMenu from "./UserMenu.svelte";
 </script>
 
-<div>
-  <div class="flex flex-row items-center justify-between px-4 py-2 md:px-6">
-    <nav class="flex gap-4 text-lg">
-      <a href="/" class="hover:text-neutral-400 transition-colors">Home</a>
-      <a href="/dashboard" class="hover:text-neutral-400 transition-colors"
+<div class="border-b border-border bg-surface-low">
+  <div class="flex h-14 items-center justify-between px-4 md:px-6">
+    <nav class="flex items-center gap-6 text-sm">
+      <a
+        href="/"
+        class="font-display text-lg uppercase tracking-[0.04em] text-primary transition-colors hover:text-gold-soft"
+        >MailHog</a
+      >
+      <a
+        href="/dashboard"
+        class="text-muted-foreground transition-colors hover:text-foreground"
         >Dashboard</a
       >
     </nav>
@@ -14,5 +20,4 @@
       <UserMenu />
     </div>
   </div>
-  <hr class="border-neutral-800" />
 </div>

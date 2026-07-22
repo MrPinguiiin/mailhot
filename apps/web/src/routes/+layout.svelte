@@ -4,6 +4,7 @@
   import "../app.css";
   import { queryClient } from "$lib/orpc";
   import Header from "../components/Header.svelte";
+  import { Toaster } from "$lib/components/ui/sonner";
 
   const { children } = $props();
 </script>
@@ -15,5 +16,6 @@
       {@render children()}
     </main>
   </div>
+  <Toaster position="top-center" richColors />
   <SvelteQueryDevtools />
 </QueryClientProvider>

@@ -28,6 +28,7 @@
     "check-types": "turbo run check-types",
     "dev:web": "turbo run dev -F web",
     "dev:server": "turbo run dev -F server",
+    "dev:all": "turbo run dev --parallel -F web -F server",
     "dev:email-worker": "turbo run dev -F @mailhog/email-worker",
     "check:email-worker": "turbo run check -F @mailhog/email-worker",
     "deploy:email-worker": "turbo run deploy -F @mailhog/email-worker",
@@ -42,11 +43,13 @@
     "env:production": "tsx scripts/sync-vercel-env.ts production",
     "deploy": "vercel deploy",
     "deploy:prod": "vercel deploy --prod",
-    "deploy:check": "vercel deploy --dry"
+    "deploy:check": "vercel deploy --dry",
+    "seed": "SKIP_ENV_VALIDATION=true bun run scripts/seed-admin.ts"
   },
   "dependencies": {
     "@lucide/svelte": "^1.25.0",
     "@mailhog/env": "workspace:*",
+    "@prisma/adapter-libsql": "^7.9.0",
     "dotenv": "catalog:",
     "zod": "catalog:"
   },

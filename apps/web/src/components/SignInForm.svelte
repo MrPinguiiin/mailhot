@@ -1,125 +1,116 @@
 <script lang="ts">
-  import { createForm } from "@tanstack/svelte-form";
-  import { z } from "zod";
   import { authClient } from "$lib/auth-client";
   import { goto } from "$app/navigation";
+  import { Button } from "$lib/components/ui/button";
+  import { Input } from "$lib/components/ui/input";
+  import { Card } from "$lib/components/ui/card";
+  import * as Field from "$lib/components/ui/field";
+  import { Loader2 } from "@lucide/svelte";
+  import { toast } from "svelte-sonner";
 
   let { switchToSignUp } = $props<{ switchToSignUp: () => void }>();
 
-  const validationSchema = z.object({
-    email: z.email("Invalid email address"),
-    password: z.string().min(1, "Password is required"),
-  });
+  let email = $state("");
+  let password = $state("");
+  let isSubmitting = $state(false);
+  let errors = $state<{ email?: string; password?: string }>({});
 
-  const form = createForm(() => ({
-    defaultValues: { email: "", password: "" },
-    onSubmit: async ({ value }) => {
-      await authClient.signIn.email(
-        { email: value.email, password: value.password },
-        {
-          onSuccess: () => goto("/dashboard"),
-          onError: (error) => {
-            console.log(
-              error.error.message || "Sign in failed. Please try again.",
-            );
-          },
+  function validate() {
+    const next: typeof errors = {};
+    if (!email) next.email = "Email is required";
+    else if (!/^[^\s@]+@[^\s@]+$/.test(email))
+      next.email = "Invalid email address";
+    if (!password) next.password = "Password is required";
+    errors = next;
+    return Object.keys(next).length === 0;
+  }
+
+  async function handleSubmit(e: Event) {
+    e.preventDefault();
+    if (!validate()) return;
+    isSubmitting = true;
+    await authClient.signIn.email(
+      { email, password },
+      {
+        onSuccess: () => {
+          toast.success("Signed in successfully");
+          goto("/dashboard");
         },
-      );
-    },
-    validators: {
-      onSubmit: validationSchema,
-    },
-  }));
-
-  type SubmitState = Pick<typeof form.state, "canSubmit" | "isSubmitting">;
+        onError: (error) => {
+          toast.error(
+            error.error.message || "Sign in failed. Please try again.",
+          );
+        },
+      },
+    );
+    isSubmitting = false;
+  }
 </script>
 
-<div class="mx-auto mt-10 w-full max-w-md p-6">
-  <h1 class="mb-6 text-center font-bold text-3xl">Welcome Back</h1>
-
-  <form
-    class="space-y-4"
-    onsubmit={(e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      form.handleSubmit();
-    }}
-  >
-    <form.Field name="email">
-      {#snippet children(field)}
-        <div class="space-y-1">
-          <label for={field.name}>Email</label>
-          <input
-            id={field.name}
-            name={field.name}
-            type="email"
-            class="w-full border"
-            onblur={field.handleBlur}
-            value={field.state.value}
-            oninput={(e: Event) => {
-              const target = e.target as HTMLInputElement;
-              field.handleChange(target.value);
-            }}
-          />
-          {#if field.state.meta.isTouched}
-            {#each field.state.meta.errors as error}
-              <p class="text-sm text-destructive" role="alert">{error}</p>
-            {/each}
-          {/if}
-        </div>
-      {/snippet}
-    </form.Field>
-
-    <form.Field name="password">
-      {#snippet children(field)}
-        <div class="space-y-1">
-          <label for={field.name}>Password</label>
-          <input
-            id={field.name}
-            name={field.name}
-            type="password"
-            class="w-full border"
-            onblur={field.handleBlur}
-            value={field.state.value}
-            oninput={(e: Event) => {
-              const target = e.target as HTMLInputElement;
-              field.handleChange(target.value);
-            }}
-          />
-          {#if field.state.meta.isTouched}
-            {#each field.state.meta.errors as error}
-              <p class="text-sm text-destructive" role="alert">{error}</p>
-            {/each}
-          {/if}
-        </div>
-      {/snippet}
-    </form.Field>
-
-    <form.Subscribe
-      selector={(state: typeof form.state): SubmitState => ({
-        canSubmit: state.canSubmit,
-        isSubmitting: state.isSubmitting,
-      })}
+<Card class="p-8">
+  <div class="mb-6">
+    <h1
+      class="font-display text-3xl uppercase tracking-[0.03em] text-foreground"
     >
-      {#snippet children(state: SubmitState)}
-        <button
-          type="submit"
-          class="w-full"
-          disabled={!state.canSubmit || state.isSubmitting}
-        >
-          {state.isSubmitting ? "Submitting..." : "Sign In"}
-        </button>
-      {/snippet}
-    </form.Subscribe>
+      Welcome back
+    </h1>
+    <p class="mt-2 text-sm text-muted-foreground">
+      Sign in to access the control center.
+    </p>
+  </div>
+
+  <form onsubmit={handleSubmit}>
+    <Field.FieldGroup>
+      <Field.Field data-invalid={!!errors.email}>
+        <Field.FieldLabel for="email">Email</Field.FieldLabel>
+        <Input
+          id="email"
+          type="email"
+          placeholder="you@example.com"
+          bind:value={email}
+          aria-invalid={!!errors.email}
+          oninput={() => (errors.email = undefined)}
+        />
+        {#if errors.email}
+          <Field.FieldError>{errors.email}</Field.FieldError>
+        {/if}
+      </Field.Field>
+
+      <Field.Field data-invalid={!!errors.password}>
+        <Field.FieldLabel for="password">Password</Field.FieldLabel>
+        <Input
+          id="password"
+          type="password"
+          placeholder="Enter your password"
+          bind:value={password}
+          aria-invalid={!!errors.password}
+          oninput={() => (errors.password = undefined)}
+        />
+        {#if errors.password}
+          <Field.FieldError>{errors.password}</Field.FieldError>
+        {/if}
+      </Field.Field>
+    </Field.FieldGroup>
+
+    <Button class="mt-6 w-full" type="submit" disabled={isSubmitting}>
+      {#if isSubmitting}
+        <Loader2
+          class="animate-spin"
+          data-icon="inline-start"
+          aria-hidden="true"
+        />
+      {/if}
+      {isSubmitting ? "Signing in..." : "Sign In"}
+    </Button>
   </form>
 
-  <div class="mt-4 text-center">
+  <p class="mt-6 text-center text-sm text-muted-foreground">
     <button
       type="button"
-      class="text-primary hover:text-gold-soft"
+      class="font-semibold text-primary hover:text-gold-soft transition-colors"
       onclick={switchToSignUp}
     >
-      Need an account? Sign Up
+      Don't have an account? Sign up
     </button>
-  </div>
-</div>
+  </p>
+</Card>
