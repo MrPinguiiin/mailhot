@@ -8,3 +8,66 @@ generator client {
 datasource db {
   provider = "sqlite"
 }
+
+model Client {
+  id         String      @id @default(cuid())
+  ownerId    String
+  name       String
+  slug       String      @unique
+  status     String      @default("pending")
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  domains    Domain[]
+  setupJobs  SetupJob[]
+
+  @@index([ownerId])
+}
+
+model Domain {
+  id          String      @id @default(cuid())
+  clientId    String
+  hostname    String
+  status      String      @default("pending")
+  zoneId      String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  client      Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  setupJobs   SetupJob[]
+  emails      Email[]
+
+  @@unique([clientId, hostname])
+  @@index([hostname])
+}
+
+model SetupJob {
+  id           String    @id @default(cuid())
+  clientId     String
+  domainId     String
+  status       String    @default("queued")
+  currentStep  String    @default("queued")
+  errorMessage String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  client       Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  domain       Domain    @relation(fields: [domainId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, createdAt])
+}
+
+model Email {
+  id           String    @id @default(cuid())
+  domainId     String
+  toAddress    String
+  fromAddress  String
+  fromName     String?
+  subject      String?
+  htmlContent  String?
+  textContent  String?
+  attachments  String?
+  receivedAt   DateTime  @default(now())
+  isRead       Boolean   @default(false)
+  isDeleted    Boolean   @default(false)
+  domain       Domain    @relation(fields: [domainId], references: [id], onDelete: Cascade)
+
+  @@index([domainId, toAddress, receivedAt])
+}
