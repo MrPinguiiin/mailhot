@@ -30,6 +30,7 @@ export const env = createEnv({
     BETTER_AUTH_URL: z.url(),
     CORS_ORIGIN: z.url(),
     INBOUND_EMAIL_SECRET: z.string().min(32).optional(),
+    CF_EMAIL_WORKER_NAME: z.string().min(1).optional(),
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   },
   runtimeEnv: runtimeEnv,

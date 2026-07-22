@@ -6,9 +6,15 @@ type CloudflareResponse<T> = {
   errors?: Array<{ message?: string }>;
 };
 
-async function cloudflareRequest<T>(token: string, path: string) {
+async function cloudflareRequest<T>(token: string, path: string, init: RequestInit = {}) {
   const response = await fetch(`https://api.cloudflare.com/client/v4${path}`, {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+    ...init,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...init.headers,
+    },
   });
   const body = (await response.json()) as CloudflareResponse<T>;
   if (!response.ok || !body.success) {
@@ -18,6 +24,14 @@ async function cloudflareRequest<T>(token: string, path: string) {
   }
   return body.result;
 }
+
+type EmailRoutingRule = {
+  id: string;
+  name?: string;
+  enabled: boolean;
+  matchers?: Array<{ type: string }>;
+  actions?: Array<{ type: string; value?: string[] }>;
+};
 
 export async function validateCloudflareDomain(token: string, hostname: string) {
   await cloudflareRequest(token, "/user/tokens/verify");
@@ -32,4 +46,32 @@ export async function validateCloudflareDomain(token: string, hostname: string) 
     });
   }
   return zone;
+}
+
+export async function configureEmailRouting(token: string, zoneId: string, workerName: string) {
+  await cloudflareRequest(token, `/zones/${zoneId}/email/routing/settings`, {
+    method: "PUT",
+    body: JSON.stringify({ enabled: true }),
+  });
+
+  const rules = await cloudflareRequest<EmailRoutingRule[]>(token, `/zones/${zoneId}/email/routing/rules`);
+  const existing = rules.find((rule) => rule.name === "mailhog-catch-all");
+  const payload = {
+    name: "mailhog-catch-all",
+    enabled: true,
+    matchers: [{ type: "all" }],
+    actions: [{ type: "worker", value: [workerName] }],
+  };
+
+  if (existing) {
+    await cloudflareRequest(token, `/zones/${zoneId}/email/routing/rules/${existing.id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  } else {
+    await cloudflareRequest(token, `/zones/${zoneId}/email/routing/rules`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
 }

@@ -2,7 +2,8 @@ import type { RouterClient } from "@orpc/server";
 import { z } from "zod";
 
 import { protectedProcedure, publicProcedure } from "../index";
-import { validateCloudflareDomain } from "../cloudflare";
+import { configureEmailRouting, validateCloudflareDomain } from "../cloudflare";
+import { env } from "@mailhog/env/server";
 
 const slugify = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
@@ -38,14 +39,17 @@ export const appRouter = {
     const domain = await context.db.domain.upsert({ where: { clientId_hostname: { clientId: client.id, hostname } }, update: { status: "validating" }, create: { clientId: client.id, hostname, status: "validating" } });
     const job = await context.db.setupJob.create({ data: { clientId: client.id, domainId: domain.id, status: "running", currentStep: "validating_cloudflare" } });
     try {
+      if (!env.CF_EMAIL_WORKER_NAME) throw new Error("CF_EMAIL_WORKER_NAME belum dikonfigurasi di server");
       const zone = await validateCloudflareDomain(input.cloudflareToken, hostname);
+      await context.db.setupJob.update({ where: { id: job.id }, data: { currentStep: "configuring_email_routing" } });
+      await configureEmailRouting(input.cloudflareToken, zone.id, env.CF_EMAIL_WORKER_NAME);
       await context.db.domain.update({ where: { id: domain.id }, data: { zoneId: zone.id, status: "ready" } });
       await context.db.client.update({ where: { id: client.id }, data: { status: "ready" } });
-      return context.db.setupJob.update({ where: { id: job.id }, data: { status: "completed", currentStep: "validated" } });
+      return context.db.setupJob.update({ where: { id: job.id }, data: { status: "completed", currentStep: "email_routing_configured" } });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Cloudflare setup failed";
       await context.db.domain.update({ where: { id: domain.id }, data: { status: "failed" } });
-      return context.db.setupJob.update({ where: { id: job.id }, data: { status: "failed", currentStep: "validation_failed", errorMessage: message } });
+      return context.db.setupJob.update({ where: { id: job.id }, data: { status: "failed", currentStep: "provisioning_failed", errorMessage: message } });
     }
   }),
   clientPage: publicProcedure.input(z.object({ slug: z.string() })).handler(async ({ input, context }) => {
