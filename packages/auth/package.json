@@ -1,0 +1,24 @@
+{
+  "name": "@mailhog/auth",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {},
+  "dependencies": {
+    "@mailhog/db": "workspace:*",
+    "@mailhog/env": "workspace:*",
+    "better-auth": "catalog:",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@mailhog/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}
