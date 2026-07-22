@@ -2,7 +2,11 @@ import type { RouterClient } from "@orpc/server";
 import { z } from "zod";
 
 import { protectedProcedure, publicProcedure } from "../index";
-import { configureEmailRouting, validateCloudflareDomain } from "../cloudflare";
+import {
+  configureEmailRouting,
+  fetchCloudflareZones,
+  validateCloudflareDomain,
+} from "../cloudflare";
 import { env } from "@mailhog/env/server";
 
 const slugify = (value: string) =>
@@ -50,6 +54,11 @@ export const appRouter = {
       return context.db.client.create({
         data: { ownerId: context.session.user.id, name: input.name, slug },
       });
+    }),
+  listCloudflareZones: protectedProcedure
+    .input(z.object({ cloudflareToken: z.string().min(20) }))
+    .handler(async ({ input }) => {
+      return fetchCloudflareZones(input.cloudflareToken);
     }),
   setupClient: protectedProcedure
     .input(

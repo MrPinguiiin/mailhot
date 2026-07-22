@@ -56,6 +56,39 @@ function secretsMatch(
   return result === 0;
 }
 
+app.post("/api/cloudflare/zones", async (c) => {
+  const session = await auth.api.getSession({ headers: c.req.raw.headers });
+  if (!session) return c.json({ error: "Unauthorized" }, 401);
+
+  const { token } = await c.req.json().catch(() => ({}));
+  if (!token || typeof token !== "string" || token.length < 20) {
+    return c.json({ error: "Invalid token" }, 400);
+  }
+
+  const zonesRes = await fetch(
+    "https://api.cloudflare.com/client/v4/zones?per_page=50",
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (zonesRes.status === 401 || zonesRes.status === 403) {
+    return c.json({ error: "Invalid Cloudflare API token" }, 401);
+  }
+  const zonesBody = await zonesRes.json();
+  if (!zonesBody.success) {
+    return c.json(
+      { error: zonesBody.errors?.[0]?.message || "Failed to fetch zones" },
+      400,
+    );
+  }
+
+  return c.json({
+    zones: (zonesBody.result || []).map((z: { id: string; name: string; status: string }) => ({
+      id: z.id,
+      name: z.name,
+      status: z.status,
+    })),
+  });
+});
+
 app.post("/api/inbound/email", async (c) => {
   if (
     !secretsMatch(c.req.header("x-inbound-secret"), env.INBOUND_EMAIL_SECRET)

@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { ORPCError } from "@orpc/server";
 
 type CloudflareResponse<T> = {
@@ -36,6 +37,14 @@ type EmailRoutingRule = {
   matchers?: Array<{ type: string }>;
   actions?: Array<{ type: string; value?: string[] }>;
 };
+
+export async function fetchCloudflareZones(token: string) {
+  await cloudflareRequest(token, "/user/tokens/verify");
+  return cloudflareRequest<Array<{ id: string; name: string; status: string }>>(
+    token,
+    "/zones?per_page=50",
+  );
+}
 
 export async function validateCloudflareDomain(
   token: string,

@@ -2,40 +2,30 @@
   import { goto } from "$app/navigation";
   import { authClient } from "$lib/auth-client";
   import { orpc } from "$lib/orpc";
+  import { PUBLIC_SERVER_URL } from "$env/static/public";
   import { createMutation, createQuery } from "@tanstack/svelte-query";
   import { Button } from "$lib/components/ui/button";
   import { Card } from "$lib/components/ui/card";
   import { Input } from "$lib/components/ui/input";
   import { Badge } from "$lib/components/ui/badge";
-  import * as Field from "$lib/components/ui/field";
   import { Separator } from "$lib/components/ui/separator";
   import { toast } from "svelte-sonner";
   import {
     Building2,
     Check,
     CircleAlert,
+    ChevronLeft,
     ExternalLink,
+    Globe,
     Loader2,
     LogOut,
     Mail,
     Plus,
+    ShieldCheck,
   } from "@lucide/svelte";
 
   const sessionQuery = authClient.useSession();
   const dashboard = createQuery(() => orpc.ownerDashboard.queryOptions());
-  let clientName = $state("");
-  const createClient = createMutation(() =>
-    orpc.createClient.mutationOptions({
-      onSuccess: () => {
-        clientName = "";
-        dashboard.refetch();
-        toast.success("Client instance created");
-      },
-      onError: (error) => {
-        toast.error(error.message || "Failed to create client");
-      },
-    }),
-  );
 
   $effect(() => {
     if (!$sessionQuery.isPending && !$sessionQuery.data) goto("/login");
@@ -43,6 +33,148 @@
 
   function signOut() {
     authClient.signOut().then(() => goto("/"));
+  }
+
+  let step = $state<"name" | "token" | "select" | "provisioning">("name");
+  let clientName = $state("");
+  let createdClientId = $state("");
+  let createdClientSlug = $state("");
+  let cloudflareToken = $state("");
+  let zones = $state<Array<{ id: string; name: string; status: string }>>([]);
+  let selectedZoneIds = $state<Set<string>>(new Set());
+  let provisioningResults = $state<
+    Array<{
+      hostname: string;
+      status: "running" | "done" | "failed";
+      error?: string;
+    }>
+  >([]);
+  let isFetchingZones = $state(false);
+  let zoneError = $state("");
+
+  const createClient = createMutation(() =>
+    orpc.createClient.mutationOptions({
+      onSuccess: (data) => {
+        createdClientId = data.id;
+        createdClientSlug = data.slug;
+        step = "token";
+        toast.success("Client created. Now add your Cloudflare token.");
+      },
+      onError: (error) => {
+        toast.error(error.message || "Failed to create client");
+      },
+    }),
+  );
+
+  const fetchZonesMutation = createMutation(() =>
+    orpc.listCloudflareZones.mutationOptions(),
+  );
+
+  const setupClientMut = createMutation(() =>
+    orpc.setupClient.mutationOptions({
+      onError: (error) => {
+        toast.error(error.message || "Provisioning failed");
+      },
+    }),
+  );
+
+  const deleteClientMut = createMutation(() =>
+    orpc.deleteClient.mutationOptions({
+      onSuccess: () => {
+        dashboard.refetch();
+        toast.success("Instance deleted");
+      },
+      onError: (error) => {
+        toast.error(error.message || "Failed to delete instance");
+      },
+    }),
+  );
+
+  async function handleFetchZones(e: Event) {
+    e.preventDefault();
+    zoneError = "";
+    isFetchingZones = true;
+    try {
+      const res = await fetch(`${PUBLIC_SERVER_URL}/api/cloudflare/zones`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: cloudflareToken }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        zoneError = body.error || "Failed to fetch domains";
+        return;
+      }
+      zones = (body.zones || []).filter(
+        (z: { status: string }) => z.status === "active",
+      );
+      if (zones.length === 0) {
+        zoneError = "No active domains found on this Cloudflare account.";
+        return;
+      }
+      step = "select";
+    } catch (err) {
+      console.error("Fetch zones error:", err);
+      zoneError = "Network error. Is the server running?";
+    } finally {
+      isFetchingZones = false;
+    }
+  }
+
+  function toggleZone(id: string) {
+    const next = new Set(selectedZoneIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    selectedZoneIds = next;
+  }
+
+  async function handleProvision() {
+    if (selectedZoneIds.size === 0) return;
+    step = "provisioning";
+    const selected = zones.filter((z) => selectedZoneIds.has(z.id));
+    provisioningResults = selected.map((z) => ({
+      hostname: z.name,
+      status: "running" as const,
+    }));
+
+    for (let i = 0; i < selected.length; i++) {
+      const zone = selected[i];
+      try {
+        await setupClientMut.mutateAsync({
+          clientId: createdClientId,
+          domain: zone.name,
+          cloudflareToken,
+        });
+        provisioningResults[i] = { hostname: zone.name, status: "done" };
+      } catch (err) {
+        provisioningResults[i] = {
+          hostname: zone.name,
+          status: "failed",
+          error: err instanceof Error ? err.message : "Provisioning failed",
+        };
+      }
+    }
+
+    dashboard.refetch();
+    toast.success(
+      provisioningResults.every((r) => r.status === "done")
+        ? "All domains provisioned successfully"
+        : "Some domains failed to provision",
+    );
+  }
+
+  function resetForm() {
+    step = "name";
+    clientName = "";
+    createdClientId = "";
+    createdClientSlug = "";
+    cloudflareToken = "";
+    zones = [];
+    selectedZoneIds = new Set();
+    provisioningResults = [];
+    zoneError = "";
+    fetchZonesMutation.reset();
   }
 
   const steps = [
@@ -169,41 +301,263 @@
               </Card>
             </div>
 
-            <Card class="mt-8 p-6">
-              <div class="flex items-center gap-3">
-                <Plus class="text-primary" size={20} aria-hidden="true" />
-                <h2
-                  class="font-display text-2xl uppercase tracking-[0.03em] text-foreground"
-                >
-                  Initialize client space
-                </h2>
-              </div>
-              <form
-                class="mt-5 flex flex-col gap-3 sm:flex-row"
-                onsubmit={(e) => {
-                  e.preventDefault();
-                  if (clientName) createClient.mutate({ name: clientName });
-                }}
-              >
-                <Field.Field class="flex-1">
-                  <Input
-                    bind:value={clientName}
-                    placeholder="Client name, e.g. Acme Corp"
-                  />
-                </Field.Field>
-                <Button disabled={createClient.isPending}>
-                  {#if createClient.isPending}
+            <Card class="mt-8 overflow-hidden">
+              {#if step === "provisioning"}
+                <div class="p-6">
+                  <div class="flex items-center gap-3">
                     <Loader2
-                      class="animate-spin"
-                      data-icon="inline-start"
+                      class="size-5 animate-spin text-primary"
                       aria-hidden="true"
                     />
-                  {:else}
-                    <Plus data-icon="inline-start" aria-hidden="true" />
+                    <h2
+                      class="font-display text-2xl uppercase tracking-[0.03em] text-foreground"
+                    >
+                      Provisioning domains
+                    </h2>
+                  </div>
+                  <div class="mt-6 space-y-3">
+                    {#each provisioningResults as result}
+                      <div
+                        class="flex items-center gap-3 rounded-lg border border-border bg-surface-low p-4"
+                      >
+                        {#if result.status === "running"}
+                          <Loader2
+                            class="size-5 animate-spin text-primary"
+                            aria-hidden="true"
+                          />
+                        {:else if result.status === "done"}
+                          <Check
+                            class="size-5 text-primary"
+                            aria-hidden="true"
+                          />
+                        {:else}
+                          <CircleAlert
+                            class="size-5 text-destructive"
+                            aria-hidden="true"
+                          />
+                        {/if}
+                        <div class="min-w-0 flex-1">
+                          <p class="font-mono text-sm text-foreground">
+                            {result.hostname}
+                          </p>
+                          {#if result.error}
+                            <p class="mt-1 text-xs text-destructive">
+                              {result.error}
+                            </p>
+                          {/if}
+                        </div>
+                        <Badge
+                          variant={result.status === "done"
+                            ? "default"
+                            : result.status === "running"
+                              ? "outline"
+                              : "destructive"}
+                        >
+                          {result.status}
+                        </Badge>
+                      </div>
+                    {/each}
+                  </div>
+                  {#if provisioningResults.every((r) => r.status !== "running")}
+                    <div class="mt-6 flex gap-3">
+                      <Button onclick={resetForm}>
+                        <Plus data-icon="inline-start" aria-hidden="true" /> New instance
+                      </Button>
+                      <Button
+                        variant="outline"
+                        href={`/client/${createdClientSlug}`}
+                      >
+                        <ExternalLink
+                          data-icon="inline-start"
+                          aria-hidden="true"
+                        /> Open instance
+                      </Button>
+                    </div>
                   {/if}
-                  Create instance
-                </Button>
-              </form>
+                </div>
+              {:else}
+                <div class="p-6">
+                  <div class="flex items-center gap-3">
+                    <Plus class="text-primary" size={20} aria-hidden="true" />
+                    <h2
+                      class="font-display text-2xl uppercase tracking-[0.03em] text-foreground"
+                    >
+                      Initialize client space
+                    </h2>
+                  </div>
+
+                  <div
+                    class="mt-6 flex items-center gap-2 font-mono text-xs uppercase tracking-wider"
+                  >
+                    <span
+                      class="text-{step === 'name'
+                        ? 'primary'
+                        : 'muted-foreground'}">Name</span
+                    >
+                    <span class="text-border">→</span>
+                    <span
+                      class="text-{step === 'name'
+                        ? 'muted-foreground'
+                        : 'primary'}">Token</span
+                    >
+                    <span class="text-border">→</span>
+                    <span
+                      class="text-{step === 'select'
+                        ? 'primary'
+                        : 'muted-foreground'}">Domains</span
+                    >
+                  </div>
+                  <Separator class="mt-4" />
+
+                  {#if step === "name"}
+                    <form
+                      class="mt-5 flex flex-col gap-3 sm:flex-row"
+                      onsubmit={(e) => {
+                        e.preventDefault();
+                        if (clientName)
+                          createClient.mutate({ name: clientName });
+                      }}
+                    >
+                      <Input
+                        class="flex-1"
+                        bind:value={clientName}
+                        placeholder="Client name, e.g. Acme Corp"
+                      />
+                      <Button disabled={createClient.isPending}>
+                        {#if createClient.isPending}
+                          <Loader2
+                            class="animate-spin"
+                            data-icon="inline-start"
+                            aria-hidden="true"
+                          />
+                        {/if}
+                        Next
+                      </Button>
+                    </form>
+                  {/if}
+
+                  {#if step === "token"}
+                    <form
+                      class="mt-5 flex flex-col gap-4"
+                      onsubmit={handleFetchZones}
+                    >
+                      <div
+                        class="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3"
+                      >
+                        <ShieldCheck
+                          class="size-4 shrink-0 text-primary"
+                          aria-hidden="true"
+                        />
+                        <p class="text-xs text-muted-foreground">
+                          Token needs <span
+                            class="font-semibold text-foreground"
+                            >Zone:Read</span
+                          >
+                          and
+                          <span class="font-semibold text-foreground"
+                            >Email Routing:Edit</span
+                          > permissions.
+                        </p>
+                      </div>
+                      <div class="flex flex-col gap-3 sm:flex-row">
+                        <Input
+                          class="flex-1 font-mono"
+                          type="password"
+                          bind:value={cloudflareToken}
+                          placeholder="Cloudflare API token"
+                        />
+                        <Button disabled={isFetchingZones}>
+                          {#if isFetchingZones}
+                            <Loader2
+                              class="animate-spin"
+                              data-icon="inline-start"
+                              aria-hidden="true"
+                            />
+                          {/if}
+                          Fetch domains
+                        </Button>
+                      </div>
+                      {#if zoneError}
+                        <p class="text-sm text-destructive">{zoneError}</p>
+                      {/if}
+                    </form>
+                    <div class="mt-3">
+                      <Button variant="ghost" size="sm" onclick={resetForm}>
+                        <ChevronLeft
+                          data-icon="inline-start"
+                          aria-hidden="true"
+                        /> Back
+                      </Button>
+                    </div>
+                  {/if}
+
+                  {#if step === "select"}
+                    <div class="mt-5">
+                      <p class="mb-4 text-sm text-muted-foreground">
+                        Select domains to provision:
+                      </p>
+                      <div class="grid gap-2">
+                        {#each zones as zone}
+                          <button
+                            type="button"
+                            class={`flex w-full items-center gap-3 rounded-lg border p-4 text-left transition-colors ${selectedZoneIds.has(zone.id) ? "border-primary bg-primary/10" : "border-border bg-surface-low hover:border-primary/50"}`}
+                            onclick={() => toggleZone(zone.id)}
+                          >
+                            <div
+                              class={`flex size-5 shrink-0 items-center justify-center rounded border ${selectedZoneIds.has(zone.id) ? "border-primary bg-primary text-primary-foreground" : "border-border"}`}
+                            >
+                              {#if selectedZoneIds.has(zone.id)}
+                                <Check class="size-3" aria-hidden="true" />
+                              {/if}
+                            </div>
+                            <Globe
+                              class="size-4 shrink-0 text-muted-foreground"
+                              aria-hidden="true"
+                            />
+                            <span class="font-mono text-sm text-foreground"
+                              >{zone.name}</span
+                            >
+                            <Badge variant="secondary" class="ml-auto"
+                              >{zone.status}</Badge
+                            >
+                          </button>
+                        {/each}
+                      </div>
+                      <div class="mt-6 flex gap-3">
+                        <Button
+                          onclick={handleProvision}
+                          disabled={selectedZoneIds.size === 0 ||
+                            setupClientMut.isPending}
+                        >
+                          {#if setupClientMut.isPending}
+                            <Loader2
+                              class="animate-spin"
+                              data-icon="inline-start"
+                              aria-hidden="true"
+                            />
+                          {/if}
+                          Provision {selectedZoneIds.size} domain{selectedZoneIds.size !==
+                          1
+                            ? "s"
+                            : ""}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          onclick={() => {
+                            step = "token";
+                            selectedZoneIds = new Set();
+                          }}
+                        >
+                          <ChevronLeft
+                            data-icon="inline-start"
+                            aria-hidden="true"
+                          /> Back
+                        </Button>
+                      </div>
+                    </div>
+                  {/if}
+                </div>
+              {/if}
             </Card>
 
             {#if !dashboard.data?.clients.length}
