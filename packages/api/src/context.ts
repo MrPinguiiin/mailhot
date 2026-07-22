@@ -7,7 +7,9 @@ export type CreateContextOptions = {
   context: HonoContext;
 };
 
-export async function createContext({ context }: CreateContextOptions): Promise<{
+export async function createContext({
+  context,
+}: CreateContextOptions): Promise<{
   db: PrismaClient;
   session: Awaited<ReturnType<typeof auth.api.getSession>>;
 }> {

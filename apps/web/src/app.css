@@ -1,25 +1,35 @@
 @import "tailwindcss";
+
 :root {
-  --background: oklch(0.13 0.025 255);
-  --foreground: oklch(0.96 0.01 255);
-  --card: oklch(0.17 0.03 255);
-  --card-foreground: oklch(0.96 0.01 255);
-  --popover: oklch(0.17 0.03 255);
-  --popover-foreground: oklch(0.96 0.01 255);
-  --primary: oklch(0.82 0.14 195);
-  --primary-foreground: oklch(0.15 0.03 255);
-  --secondary: oklch(0.24 0.04 255);
-  --secondary-foreground: oklch(0.96 0.01 255);
-  --muted: oklch(0.22 0.03 255);
-  --muted-foreground: oklch(0.68 0.03 255);
-  --accent: oklch(0.25 0.05 220);
-  --accent-foreground: oklch(0.96 0.01 255);
-  --destructive: oklch(0.65 0.2 25);
-  --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.29 0.04 255);
-  --input: oklch(0.29 0.04 255);
-  --ring: oklch(0.82 0.14 195);
-  --radius: 0.65rem;
+  --background: #121414;
+  --foreground: #e2e2e2;
+  --card: #1e2020;
+  --card-foreground: #e2e2e2;
+  --popover: #282a2b;
+  --popover-foreground: #e2e2e2;
+  --primary: #f0bf6d;
+  --primary-foreground: #432c00;
+  --secondary: #233a66;
+  --secondary-foreground: #d8e2ff;
+  --muted: #1a1c1c;
+  --muted-foreground: #c4c6d0;
+  --accent: #333535;
+  --accent-foreground: #ffdeac;
+  --destructive: #ffb2b8;
+  --destructive-foreground: #40000e;
+  --border: #44474f;
+  --input: #44474f;
+  --ring: #f0bf6d;
+  --radius: 0.5rem;
+
+  --surface-lowest: #0c0f0f;
+  --surface-low: #1a1c1c;
+  --surface-high: #282a2b;
+  --surface-highest: #333535;
+  --gold: #f0bf6d;
+  --gold-soft: #ffdeac;
+  --navy: #233a66;
+  --danger: #ffb2b8;
 }
 
 @theme inline {
@@ -42,14 +52,35 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-navy: var(--navy);
+  --color-danger: var(--danger);
+  --color-surface-lowest: var(--surface-lowest);
+  --color-surface-low: var(--surface-low);
+  --color-surface-high: var(--surface-high);
+  --color-surface-highest: var(--surface-highest);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 0.35rem);
 }
 
 body {
   @apply bg-background text-foreground;
-  background-image: radial-gradient(circle at 80% 0%, rgba(34, 211, 238, .12), transparent 32rem);
+  background-image:
+    linear-gradient(135deg, rgba(35, 58, 102, 0.18), transparent 42%),
+    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+  background-size:
+    auto,
+    32px 32px,
+    32px 32px;
 }
-.field { @apply w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-cyan-300; }
-.button { @apply rounded-2xl bg-cyan-300 px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-50; }
-.tag { @apply rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs uppercase tracking-wider text-cyan-200; }
+.field {
+  @apply w-full rounded-2xl border border-border bg-surface-low px-4 py-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary;
+}
+.button {
+  @apply rounded-2xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground transition hover:bg-gold-soft disabled:cursor-not-allowed disabled:opacity-50;
+}
+.tag {
+  @apply rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs uppercase tracking-wider text-primary;
+}

@@ -30,7 +30,10 @@ app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 
 const inboundEmailSchema = z.object({
   id: z.string().min(1).max(200),
-  toAddress: z.string().email().transform((value) => value.toLowerCase()),
+  toAddress: z
+    .string()
+    .email()
+    .transform((value) => value.toLowerCase()),
   fromAddress: z.string().min(1).max(320),
   fromName: z.string().max(320).nullable().optional(),
   subject: z.string().max(998).nullable().optional(),
@@ -40,8 +43,12 @@ const inboundEmailSchema = z.object({
   receivedAt: z.string().datetime().optional(),
 });
 
-function secretsMatch(provided: string | undefined, expected: string | undefined) {
-  if (!provided || !expected || provided.length !== expected.length) return false;
+function secretsMatch(
+  provided: string | undefined,
+  expected: string | undefined,
+) {
+  if (!provided || !expected || provided.length !== expected.length)
+    return false;
   let result = 0;
   for (let index = 0; index < expected.length; index += 1) {
     result |= provided.charCodeAt(index) ^ expected.charCodeAt(index);
@@ -50,17 +57,24 @@ function secretsMatch(provided: string | undefined, expected: string | undefined
 }
 
 app.post("/api/inbound/email", async (c) => {
-  if (!secretsMatch(c.req.header("x-inbound-secret"), env.INBOUND_EMAIL_SECRET)) {
+  if (
+    !secretsMatch(c.req.header("x-inbound-secret"), env.INBOUND_EMAIL_SECRET)
+  ) {
     return c.json({ error: "Unauthorized" }, 401);
   }
 
-  const parsed = inboundEmailSchema.safeParse(await c.req.json().catch(() => null));
+  const parsed = inboundEmailSchema.safeParse(
+    await c.req.json().catch(() => null),
+  );
   if (!parsed.success) return c.json({ error: "Invalid email payload" }, 400);
 
   const payload = parsed.data;
   const domainName = payload.toAddress.split("@")[1];
-  const domain = await prisma.domain.findFirst({ where: { hostname: domainName, status: "ready" } });
-  if (!domain) return c.json({ error: "Recipient domain is not provisioned" }, 404);
+  const domain = await prisma.domain.findFirst({
+    where: { hostname: domainName, status: "ready" },
+  });
+  if (!domain)
+    return c.json({ error: "Recipient domain is not provisioned" }, 404);
 
   await prisma.email.upsert({
     where: { id: payload.id },
@@ -74,7 +88,9 @@ app.post("/api/inbound/email", async (c) => {
       htmlContent: payload.htmlContent ?? null,
       textContent: payload.textContent ?? null,
       attachments: payload.attachments ?? null,
-      receivedAt: payload.receivedAt ? new Date(payload.receivedAt) : new Date(),
+      receivedAt: payload.receivedAt
+        ? new Date(payload.receivedAt)
+        : new Date(),
     },
     update: {},
   });

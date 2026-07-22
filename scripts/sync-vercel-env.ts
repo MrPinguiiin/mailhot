@@ -18,11 +18,16 @@ const OVERRIDE_KEYS = new Map([
 const args = process.argv.slice(2);
 const separatorIndex = args.indexOf("--");
 const scriptArgs = separatorIndex === -1 ? args : args.slice(0, separatorIndex);
-const forwardedArgs = separatorIndex === -1 ? [] : args.slice(separatorIndex + 1);
+const forwardedArgs =
+  separatorIndex === -1 ? [] : args.slice(separatorIndex + 1);
 
 const environment =
-  scriptArgs[0] && VALID_ENVIRONMENTS.has(scriptArgs[0]) ? scriptArgs[0] : DEFAULT_ENVIRONMENT;
-const remainingArgs = scriptArgs.slice(VALID_ENVIRONMENTS.has(scriptArgs[0] ?? "") ? 1 : 0);
+  scriptArgs[0] && VALID_ENVIRONMENTS.has(scriptArgs[0])
+    ? scriptArgs[0]
+    : DEFAULT_ENVIRONMENT;
+const remainingArgs = scriptArgs.slice(
+  VALID_ENVIRONMENTS.has(scriptArgs[0] ?? "") ? 1 : 0,
+);
 // Split remaining args into env-file paths and passthrough Vercel CLI flags.
 // A bare token counts as a file only when it exists on disk, so flags and their
 // values (e.g. `--scope my-team`) forward correctly regardless of argument order.
@@ -51,7 +56,9 @@ for (const file of envFiles) {
     continue;
   }
 
-  for (const [key, value] of Object.entries(dotenv.parse(readFileSync(file, "utf8")))) {
+  for (const [key, value] of Object.entries(
+    dotenv.parse(readFileSync(file, "utf8")),
+  )) {
     if (SKIP_KEYS.has(key)) continue;
     env.set(key, OVERRIDE_KEYS.get(key) ?? value);
   }

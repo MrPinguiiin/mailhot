@@ -3,7 +3,9 @@ import { z } from "zod";
 
 const serverUrlSchema = z.union([
   z.url(),
-  z.string().regex(/^\/(?!\/)/, "Use an absolute URL or a same-origin path like /api"),
+  z
+    .string()
+    .regex(/^\/(?!\/)/, "Use an absolute URL or a same-origin path like /api"),
 ]);
 
 export const env = createEnv({

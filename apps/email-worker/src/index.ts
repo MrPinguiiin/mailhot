@@ -9,19 +9,25 @@ function addressValue(value: string | Address | Address[] | undefined) {
   return value.address;
 }
 
-function encodeAttachments(attachments: Array<Record<string, unknown>> | undefined) {
-  return JSON.stringify((attachments ?? []).map((attachment) => ({
-    filename: attachment.filename,
-    mimeType: attachment.mimeType,
-    disposition: attachment.disposition,
-    contentId: attachment.contentId,
-  })));
+function encodeAttachments(
+  attachments: Array<Record<string, unknown>> | undefined,
+) {
+  return JSON.stringify(
+    (attachments ?? []).map((attachment) => ({
+      filename: attachment.filename,
+      mimeType: attachment.mimeType,
+      disposition: attachment.disposition,
+      contentId: attachment.contentId,
+    })),
+  );
 }
 
 export default {
   async email(message: ForwardableEmailMessage, env: Env): Promise<void> {
     const parsed = await new PostalMime().parse(message.raw);
-    const toAddress = addressValue(parsed.to as string | Address | Address[] | undefined)?.toLowerCase();
+    const toAddress = addressValue(
+      parsed.to as string | Address | Address[] | undefined,
+    )?.toLowerCase();
     if (!toAddress) throw new Error("Inbound email has no recipient");
 
     const from = parsed.from as string | Address | undefined;
@@ -35,15 +41,18 @@ export default {
         id: crypto.randomUUID(),
         toAddress,
         fromAddress: addressValue(from) ?? "unknown",
-        fromName: typeof from === "object" && from ? from.name ?? null : null,
+        fromName: typeof from === "object" && from ? (from.name ?? null) : null,
         subject: parsed.subject ?? null,
         htmlContent: parsed.html ?? null,
         textContent: parsed.text ?? null,
-        attachments: encodeAttachments(parsed.attachments as Array<Record<string, unknown>> | undefined),
+        attachments: encodeAttachments(
+          parsed.attachments as Array<Record<string, unknown>> | undefined,
+        ),
         receivedAt: new Date().toISOString(),
       }),
     });
 
-    if (!response.ok) throw new Error(`Inbound ingest failed with status ${response.status}`);
+    if (!response.ok)
+      throw new Error(`Inbound ingest failed with status ${response.status}`);
   },
 };

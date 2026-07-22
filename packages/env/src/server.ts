@@ -18,7 +18,8 @@ const runtimeEnv = {
   // Public auth base: /api/auth bypasses the rewrite's path strip, so the
   // same URL works for incoming matching and generated callbacks
   BETTER_AUTH_URL:
-    process.env.BETTER_AUTH_URL ?? (vercelOrigin ? `${vercelOrigin}/api/auth` : undefined),
+    process.env.BETTER_AUTH_URL ??
+    (vercelOrigin ? `${vercelOrigin}/api/auth` : undefined),
   CORS_ORIGIN: process.env.CORS_ORIGIN ?? vercelOrigin,
 };
 
@@ -31,7 +32,9 @@ export const env = createEnv({
     CORS_ORIGIN: z.url(),
     INBOUND_EMAIL_SECRET: z.string().min(32).optional(),
     CF_EMAIL_WORKER_NAME: z.string().min(1).optional(),
-    NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+    NODE_ENV: z
+      .enum(["development", "production", "test"])
+      .default("development"),
   },
   runtimeEnv: runtimeEnv,
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
