@@ -27,7 +27,10 @@ export const appRouter = {
     const [clients, emails] = await Promise.all([
       context.db.client.findMany({
         where: { ownerId },
-        include: { domains: true },
+        include: {
+          domains: true,
+          setupJobs: { orderBy: { createdAt: "desc" }, take: 1 },
+        },
         orderBy: { createdAt: "desc" },
       }),
       context.db.email.count({
