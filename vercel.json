@@ -1,42 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "bunVersion": "1.x",
-  "services": {
-    "web": {
-      "root": "apps/web",
-      "framework": "sveltekit",
-      "installCommand": "cd ../.. && bun install --frozen-lockfile",
-      "buildCommand": "PUBLIC_SERVER_URL=/api bun run build"
-    },
-    "server": {
-      "root": "apps/server",
-      "entrypoint": "src/index.ts",
-      "routes": [
-        {
-          "src": "/api/((?!auth(?:/|$)).*)",
-          "transforms": [
-            {
-              "type": "request.path",
-              "op": "set",
-              "args": "/$1"
-            }
-          ]
-        }
-      ]
-    }
-  },
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": {
-        "service": "server"
-      }
-    },
-    {
-      "source": "/(.*)",
-      "destination": {
-        "service": "web"
-      }
-    }
-  ]
+  "framework": "sveltekit",
+  "installCommand": "bun install --frozen-lockfile",
+  "buildCommand": "bun run --filter web build"
 }
